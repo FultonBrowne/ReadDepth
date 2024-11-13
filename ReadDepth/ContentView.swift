@@ -26,87 +26,84 @@ struct ContentView: View {
     @State private var selectedRotation: RotationAngle = .degrees0
 
     var body: some View {
-        VStack {
-            if let colorImage = depthImage.colorImage {
-                GeometryReader { geometry in
-                    ZStack {
-                        Image(nsImage: colorImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: geometry.size.width, height: geometry.size.height)
-                            .gesture(
-                                DragGesture(minimumDistance: 0)
-                                    .onChanged { value in
-                                        handleMouseHover(at: value.location, in: geometry.size)
-                                    }
-                            )
-                        if let overlayImage = depthImage.depthOverlayImage {
-                            Image(nsImage: overlayImage)
+            VStack {
+                if let colorImage = depthImage.colorImage {
+                    GeometryReader { geometry in
+                        ZStack {
+                            Image(nsImage: colorImage)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: geometry.size.width, height: geometry.size.height)
-                                .opacity(overlayOpacity)
-                                .allowsHitTesting(false)
-                        }
-                        if let depth = depthValue {
-                            let convertedDepth = convertDepth(depth, to: selectedUnit)
-                            let unitSymbol = symbolForUnit(selectedUnit)
-                            Text(String(format: "Depth: %.2f %@", convertedDepth, unitSymbol))
-                                .padding(8)
-                                .background(Color.black.opacity(0.7))
-                                .foregroundColor(.white)
-                                .cornerRadius(5)
-                                .position(x: mouseLocation.x + 80, y: mouseLocation.y + 20)
+                                .gesture(
+                                    DragGesture(minimumDistance: 0)
+                                        .onChanged { value in
+                                            handleMouseHover(at: value.location, in: geometry.size)
+                                        }
+                                )
+                            if let overlayImage = depthImage.depthOverlayImage {
+                                Image(nsImage: overlayImage)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: geometry.size.width, height: geometry.size.height)
+                                    .opacity(overlayOpacity)
+                                    .allowsHitTesting(false)
+                            }
+                            if let depth = depthValue {
+                                let convertedDepth = convertDepth(depth, to: selectedUnit)
+                                let unitSymbol = symbolForUnit(selectedUnit)
+                                Text(String(format: "Depth: %.2f %@", convertedDepth, unitSymbol))
+                                    .padding(8)
+                                    .background(Color.black.opacity(0.7))
+                                    .foregroundColor(.white)
+                                    .cornerRadius(5)
+                                    .position(x: mouseLocation.x + 80, y: mouseLocation.y + 20)
+                            }
                         }
                     }
+                } else {
+                    Text("No image loaded")
                 }
-            } else {
-                Text("No image loaded")
             }
-            HStack {
-                Text("Unit:")
-                Picker("Unit", selection: $selectedUnit) {
-                    Text("Millimeters").tag(UnitLength.millimeters)
-                    Text("Centimeters").tag(UnitLength.centimeters)
-                    Text("Meters").tag(UnitLength.meters)
+            .toolbar {
+                ToolbarItemGroup(placement: .navigation) {
+                    Button(action: openColorImageFile) {
+                        Label("Load Color Image", systemImage: "photo")
+                    }
+                    Button(action: openDepthFile) {
+                        Label("Load Depth Map", systemImage: "cube")
+                    }
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 300)
-            }
-            .padding()
-            HStack {
-                Text("Overlay Opacity:")
-                Slider(value: $overlayOpacity, in: 0...1)
+                ToolbarItemGroup(placement: .automatic) {
+                    Picker("Unit", selection: $selectedUnit) {
+                        Text("mm").tag(UnitLength.millimeters)
+                        Text("cm").tag(UnitLength.centimeters)
+                        Text("m").tag(UnitLength.meters)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 150)
+                }
+                ToolbarItemGroup(placement: .automatic) {
+                    Picker("Rotation", selection: $selectedRotation) {
+                        ForEach(RotationAngle.allCases) { angle in
+                            Text(angle.description).tag(angle)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
                     .frame(width: 200)
-                Text(String(format: "%.0f%%", overlayOpacity * 100))
-            }
-            .padding()
-            HStack {
-                Button("Load Color Image") {
-                    openColorImageFile()
-                }
-                .padding()
-                Button("Load Depth Map") {
-                    openDepthFile()
-                }
-                .padding()
-            }
-            HStack {
-                Text("Depth Map Rotation:")
-                Picker("Rotation", selection: $selectedRotation) {
-                    ForEach(RotationAngle.allCases) { angle in
-                        Text(angle.description).tag(angle)
+                    .onChange(of: selectedRotation) { newAngle in
+                        depthImage.applyManualRotation(angle: newAngle)
                     }
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 300)
-                .onChange(of: selectedRotation) { newAngle in
-                    depthImage.applyManualRotation(angle: newAngle)
+                ToolbarItemGroup(placement: .status) {
+                    HStack {
+                        Text("Opacity")
+                        Slider(value: $overlayOpacity, in: 0...1)
+                            .frame(width: 100)
+                        Text(String(format: "%.0f%%", overlayOpacity * 100))
+                    }
                 }
             }
-            .padding()
         }
-    }
 
     func handleMouseHover(at location: CGPoint, in viewSize: CGSize) {
         let imageWidth = depthImage.width
